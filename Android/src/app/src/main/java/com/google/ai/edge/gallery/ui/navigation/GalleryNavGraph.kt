@@ -88,6 +88,7 @@ import com.google.ai.edge.gallery.ui.modelmanager.ModelInitializationStatusType
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManager
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManagerViewModel
 import com.google.ai.edge.gallery.ui.notifications.NotificationsScreen
+import com.google.ai.edge.gallery.ui.tideline.TidelineScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -99,6 +100,7 @@ private const val ROUTE_MODEL = "route_model"
 private const val ROUTE_BENCHMARK = "benchmark"
 private const val ROUTE_MODEL_MANAGER = "model_manager"
 private const val ROUTE_NOTIFICATIONS = "notifications"
+private const val ROUTE_TIDELINE = "tideline"
 private const val ENTER_ANIMATION_DURATION_MS = 500
 private val ENTER_ANIMATION_EASING = EaseOutExpo
 private const val ENTER_ANIMATION_DELAY_MS = 100
@@ -186,10 +188,14 @@ fun GalleryNavHost(
 
   NavHost(
     navController = navController,
-    startDestination = ROUTE_HOMESCREEN,
+    startDestination = ROUTE_TIDELINE,
     enterTransition = { EnterTransition.None },
     exitTransition = { ExitTransition.None },
   ) {
+    // Tideline screen (Phase 1 hello-world; revert startDestination to ROUTE_HOMESCREEN
+    // when we add a HomeScreen tile in Phase 2).
+    composable(route = ROUTE_TIDELINE) { TidelineScreen() }
+
     // Home screen.
     composable(route = ROUTE_HOMESCREEN) {
       // Create a state to trigger PromoScreen fade in animation.
