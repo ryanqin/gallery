@@ -18,10 +18,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -77,6 +81,13 @@ fun TidelineScreen(viewModel: TidelineTranslateViewModel = viewModel()) {
         minLines = 2,
         maxLines = 6,
         enabled = state.engineState != EngineState.INFERRING,
+        trailingIcon = if (state.sourceText.isNotEmpty()) {
+          {
+            IconButton(onClick = { viewModel.onSourceTextChange("") }) {
+              Icon(Icons.Default.Clear, contentDescription = "Clear")
+            }
+          }
+        } else null,
       )
 
       Button(

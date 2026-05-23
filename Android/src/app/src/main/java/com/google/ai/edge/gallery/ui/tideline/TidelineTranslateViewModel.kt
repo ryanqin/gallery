@@ -149,11 +149,20 @@ class TidelineTranslateViewModel(application: Application) : AndroidViewModel(ap
     )
 
     val userText = "Translate the following to ${state.targetLang}: $src"
+    val tStart = System.currentTimeMillis()
+    var tFirst = 0L
+    var firstSeen = false
+    Log.i(TAG, "BENCH start t=$tStart src=\"$src\" lang=${state.targetLang}")
     try {
       conv.sendMessageAsync(
         Contents.of(listOf(Content.Text(userText))),
         object : MessageCallback {
           override fun onMessage(message: Message) {
+            if (!firstSeen) {
+              tFirst = System.currentTimeMillis()
+              firstSeen = true
+              Log.i(TAG, "BENCH first_token ttft_ms=${tFirst - tStart}")
+            }
             _ui.value = _ui.value.copy(translation = message.toString())
           }
 
@@ -161,6 +170,16 @@ class TidelineTranslateViewModel(application: Application) : AndroidViewModel(ap
             val finalState = _ui.value
             _ui.value = finalState.copy(engineState = EngineState.READY)
             val translated = finalState.translation.trim()
+            val tDone = System.currentTimeMillis()
+            val total = tDone - tStart
+            val genMs = if (firstSeen) tDone - tFirst else 0L
+            val outChars = translated.length
+            val tokPerSec = if (genMs > 0) outChars * 1000.0 / genMs else 0.0
+            Log.i(
+              TAG,
+              "BENCH done total_ms=$total gen_ms=$genMs out_chars=$outChars " +
+                "approx_tok_per_s=${"%.2f".format(tokPerSec)} out=\"$translated\""
+            )
             if (translated.isNotEmpty()) {
               viewModelScope.launch(Dispatchers.IO) {
                 try {
