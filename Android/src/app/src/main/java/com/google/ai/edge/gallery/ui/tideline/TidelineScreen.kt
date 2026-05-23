@@ -10,6 +10,7 @@ package com.google.ai.edge.gallery.ui.tideline
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -34,10 +36,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.ai.edge.gallery.data.tideline.TranslationEntity
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun TidelineScreen(viewModel: TidelineTranslateViewModel = viewModel()) {
   val state by viewModel.ui.collectAsState()
+  val history by viewModel.history.collectAsState()
 
   // Kick off engine load on first composition.
   LaunchedEffect(Unit) { viewModel.initEngine() }
@@ -53,7 +60,7 @@ fun TidelineScreen(viewModel: TidelineTranslateViewModel = viewModel()) {
     ) {
       Text(text = "Tideline", style = MaterialTheme.typography.displaySmall)
       Text(
-        text = "本地翻译 — Phase 2",
+        text = "本地翻译 — Phase 3",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
@@ -83,9 +90,59 @@ fun TidelineScreen(viewModel: TidelineTranslateViewModel = viewModel()) {
       if (state.translation.isNotEmpty() || state.engineState == EngineState.INFERRING) {
         TranslationCard(state.translation, streaming = state.engineState == EngineState.INFERRING)
       }
+
+      if (history.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        HorizontalDivider()
+        Text(
+          text = "你的最近翻译 (${history.size})",
+          style = MaterialTheme.typography.titleSmall,
+          fontWeight = FontWeight.SemiBold,
+        )
+        history.forEach { row -> HistoryRow(row) }
+      }
     }
   }
 }
+
+@Composable
+private fun HistoryRow(row: TranslationEntity) {
+  Card(
+    modifier = Modifier.fillMaxWidth(),
+    colors = CardDefaults.cardColors(
+      containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ),
+  ) {
+    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+      Text(
+        text = row.original,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Medium,
+      )
+      Text(
+        text = "→ ${row.translated}",
+        style = MaterialTheme.typography.bodyMedium,
+      )
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+      ) {
+        Text(
+          text = row.targetLang,
+          style = MaterialTheme.typography.labelSmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+          text = TIME_FMT.format(Date(row.createdAt)),
+          style = MaterialTheme.typography.labelSmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
+    }
+  }
+}
+
+private val TIME_FMT = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
 
 @Composable
 private fun EngineStatusBar(engineState: EngineState, errorMessage: String?) {

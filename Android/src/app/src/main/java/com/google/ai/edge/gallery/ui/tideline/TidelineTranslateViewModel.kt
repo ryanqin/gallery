@@ -16,6 +16,9 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.ai.edge.gallery.data.tideline.TidelineDatabase
+import com.google.ai.edge.gallery.data.tideline.TranslationDao
+import com.google.ai.edge.gallery.data.tideline.TranslationEntity
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
@@ -27,9 +30,12 @@ import com.google.ai.edge.litertlm.ExperimentalApi
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 import com.google.ai.edge.litertlm.SamplerConfig
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 private const val TAG = "TidelineTranslateVM"
@@ -65,6 +71,18 @@ class TidelineTranslateViewModel(application: Application) : AndroidViewModel(ap
 
   private val _ui = MutableStateFlow(TidelineUiState())
   val ui = _ui.asStateFlow()
+
+  private val dao: TranslationDao = TidelineDatabase.get(application).translationDao()
+
+  // App-launch session UUID. MVP shortcut; real Tideline "outing" semantics
+  // (GPS / time-window grouping) lands in Phase 5.
+  private val sessionId: String = UUID.randomUUID().toString()
+
+  val history = dao.observeLatest().stateIn(
+    scope = viewModelScope,
+    started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000),
+    initialValue = emptyList(),
+  )
 
   private var engine: Engine? = null
   private var conversation: Conversation? = null
@@ -140,7 +158,27 @@ class TidelineTranslateViewModel(application: Application) : AndroidViewModel(ap
           }
 
           override fun onDone() {
-            _ui.value = _ui.value.copy(engineState = EngineState.READY)
+            val finalState = _ui.value
+            _ui.value = finalState.copy(engineState = EngineState.READY)
+            val translated = finalState.translation.trim()
+            if (translated.isNotEmpty()) {
+              viewModelScope.launch(Dispatchers.IO) {
+                try {
+                  dao.insert(
+                    TranslationEntity(
+                      original = src,
+                      targetLang = finalState.targetLang,
+                      translated = translated,
+                      source = "text",
+                      contextSnippet = null,
+                      sessionId = sessionId,
+                    )
+                  )
+                } catch (t: Throwable) {
+                  Log.e(TAG, "Persist translation failed", t)
+                }
+              }
+            }
           }
 
           override fun onError(throwable: Throwable) {
